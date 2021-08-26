@@ -1,0 +1,38 @@
+SET MARKUP HTML ON SPOOL ON
+SPOOL /tmp/1wd9vbgqdqpc1.html
+SET ECHO ON
+
+SET lines 155
+col execs FOR 999,999,999
+col avg_etime FOR 999,999,999
+col avg_lio FOR 999,999,999.9
+col begin_interval_time FOR a30
+col node FOR 99999
+
+--BREAK ON plan_hash_value ON startup_time skip 1
+
+--SELECT systimestamp from dual;
+
+--SELECT instance_name,version from v$instance;
+
+SELECT ss.snap_id
+,ss.instance_number node
+,begin_interval_time
+,sql_id
+,plan_hash_value
+,parsing_schema_name
+,parsing_user_id
+,optimizer_env_hash_value
+,sql_profile
+,nvl(executions_delta, 0) execs
+,(elapsed_time_delta / decode(nvl(executions_delta, 0), 0, 1, executions_delta)) / 1000000 avg_etime
+,(buffer_gets_delta / decode(nvl(buffer_gets_delta, 0), 0, 1, executions_delta)) avg_lio
+FROM DBA_HIST_SQLSTAT S
+,DBA_HIST_SNAPSHOT SS
+WHERE sql_id = '1wd9vbgqdqpc1'
+AND ss.snap_id = S.snap_id
+AND ss.instance_number = S.instance_number
+AND executions_delta > 0
+ORDER BY 1
+,2
+,3 ;

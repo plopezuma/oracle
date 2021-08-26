@@ -1,0 +1,47 @@
+rman TARGET sys@db1 CATALOG rman@RMANREPO AUXILIARY /
+
+rman TARGET sys@db1 AUXILIARY sys@plt02
+
+spool log to '/tmp/clone_plt02_from_db1.log';
+duplicate target database to plt02 from active database;
+spool off;
+exit;
+
+
+spool log to '/tmp/duplicatePLT02.log';
+run {
+allocate auxiliary channel ch1 type 'SBT_TAPE' parms="ENV=(NB_ORA_CLIENT=server1,NB_ORA_SERV=mynbmaster)";
+allocate auxiliary channel ch2 type 'SBT_TAPE' parms="ENV=(NB_ORA_CLIENT=server1,NB_ORA_SERV=mynbmaster)";
+allocate auxiliary channel ch3 type 'SBT_TAPE' parms="ENV=(NB_ORA_CLIENT=server1,NB_ORA_SERV=mynbmaster)";
+allocate auxiliary channel ch4 type 'SBT_TAPE' parms="ENV=(NB_ORA_CLIENT=server1,NB_ORA_SERV=mynbmaster)";
+set until time "to_date('2018-05-08:07:00:00', 'yyyy-mm-dd:hh24:mi:ss')";
+duplicate target database to PLT02;
+}
+
+spool off;
+exit;
+
+
+echo "alias NEWAMZ='. /u01/app/oracle/sidenv NEWAMZ'" >> /u01/app/oracle/sidalias
+
+orapwd file=orapwPLT02 password=skyfall007 entries=10;
+
+
+
+
+
+oracle@server1[DB1] => export NLS_DATE_FORMAT='DD-MON-YY HH24:MI:SS'
+oracle@server1[DB1] => rman target / catalog rman@RMANREPO
+
+Recovery Manager: Release 12.1.0.2.0 - Production on Mon May 7 16:39:49 2018
+
+Copyright (c) 1982, 2014, Oracle and/or its affiliates.  All rights reserved.
+
+connected to target database: DB1 (DBID=3524020995)
+recovery catalog database Password:
+connected to recovery catalog database
+recovery catalog schema release 12.02.00.01. is newer than RMAN release
+
+RMAN> LIST BACKUP OF DATABASE COMPLETED AFTER '(SYSDATE-1)';
+
+

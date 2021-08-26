@@ -1,0 +1,127 @@
+EXEC dbms_sqltune.create_sqlset('sts_pablo');
+
+-- Load from Cursor Cache
+
+DECLARE sqlset_cur dbms_sqltune.sqlset_cursor; 
+BEGIN 
+OPEN sqlset_cur FOR 
+SELECT VALUE(P) FROM TABLE (DBMS_SQLTUNE.SELECT_CURSOR_CACHE('sql_id = ''aj60z6ptmu0va''')) p;
+DBMS_SQLTUNE.LOAD_SQLSET(SQLSET_NAME=> 'sts_pablo', POPULATE_CURSOR=>sqlset_cur);
+END;
+/
+-- Load using AWR reports
+
+DECLARE sqlset_cur dbms_sqltune.sqlset_cursor; 
+BEGIN 
+OPEN sqlset_cur FOR 
+SELECT VALUE(P) FROM TABLE( dbms_sqltune.select_workload_repository(11092,11260, NULL, NULL, NULL, NULL, NULL, 1, NULL, 'TYPICAL')) P; 
+dbms_sqltune.load_sqlset( sqlset_name=>'PL_STS', populate_cursor=>sqlset_cur, load_option => 'MERGE', update_option => 'ACCUMULATE', sqlset_owner=>'SYS'); 
+END;
+
+-- LOAD SQL TUNING SET based on a Text match
+DECLARE 
+cur sys_refcursor;
+BEGIN 
+open cur for 
+select value(p) from table(dbms_sqltune.select_cursor_cache('sql_text like ''%WITH AcceptedOrders AS%'' and buffer_gets > 1000')) p; 
+dbms_sqltune.load_sqlset('sts_fdr_summary', cur); 
+close cur;
+END; 
+/
+
+-- QUERY SQL TUNING SETS
+
+SET PAGESIZE 120
+COLUMN NAME FORMAT a20
+COLUMN COUNT FORMAT 99999
+COLUMN DESCRIPTION FORMAT a50
+
+SELECT NAME, STATEMENT_COUNT AS "SQLCNT", DESCRIPTION FROM DBA_SQLSET;
+
+-- Get a STS based on a SQL_ID in AWR 
+
+BEGIN
+  DBMS_SQLTUNE.CREATE_SQLSET(sqlset_name => 'sts_pablo');
+END;
+/
+
+-- Multiple SQLID from AWR loaded into a single STS
+
+DECLARE
+  cur sys_refcursor;
+BEGIN
+open cur for
+ select value(p) from table(dbms_sqltune.select_workload_repository(
+      begin_snap => 17235,
+      end_snap => 17420,
+      basic_filter => 'sql_id IN (''ajckfwt7f7u1y'', ''8pbpbb5ccftvt'', ''cb5vgtz0hwc57'', ''5xz0fdqyrxbhd'')')) p;
+    dbms_sqltune.load_sqlset(sqlset_name=>'STS_PABLO', populate_cursor=>cur, load_option => 'MERGE', update_option => 'ACCUMULATE', sqlset_owner=>'SYS');
+  close cur;
+END;
+/
+
+DECLARE
+  cur sys_refcursor;
+BEGIN
+open cur for
+ select value(p) from table(dbms_sqltune.select_workload_repository(
+      begin_snap => 13517,
+      end_snap => 13658,
+      basic_filter => 'sql_id IN (''5syrsfm7r6zx0'') AND plan_hash_value = ''1778884542''')) p;
+    dbms_sqltune.load_sqlset(sqlset_name=>'STS_PABLO', populate_cursor=>cur, load_option => 'MERGE', update_option => 'ACCUMULATE', sqlset_owner=>'SYS');
+  close cur;
+END;
+/
+
+DECLARE
+ my_plans PLS_INTEGER;
+BEGIN
+ my_plans := DBMS_SPM.LOAD_PLANS_FROM_SQLSET(
+   sqlset_name => 'sts_pablo',
+    fixed => 'YES');
+END;
+/
+
+-------------
+
+-- CREATE SQL TUNING TASK
+
+DECLARE
+  my_task_name VARCHAR2(30);
+BEGIN
+  my_task_name := DBMS_SQLTUNE.CREATE_TUNING_TASK(sqlset_name => 'PL_TOP_SQL', task_name => 'PL_TOP_SQL', scope => 'COMPREHENSIVE', time_limit => 15);
+  dbms_sqltune.execute_tuning_task (my_task_name);
+END;
+/
+
+SET linesize 180
+SET LONG 999999999
+SET pagesize 1000
+SET longchunksize 20000
+spool /tmp/SQL_TUNING_PL_1.log
+select dbms_sqltune.report_tuning_task(task_name => 'SQL_TUNING_PL_1') from dual;
+spool off
+
+SET linesize 180
+SET LONG 999999999
+SET pagesize 1000
+SET longchunksize 20000
+spool /tmp/SQL_TUNING_PL_1.sql
+select dbms_sqltune.script_tuning_task(task_name => 'SQL_TUNING_PL_1') from dual;
+spool off
+
+-- check profiles applied
+
+
+SQL> col SQL_TEXT format a80
+SQL> SELECT NAME, SQL_TEXT, CATEGORY, STATUS FROM DBA_SQL_PROFILES;
+
+-- Drop profile
+EXEC DBMS_SQLTUNE.DROP_SQL_PROFILE(:pname);
+
+SELECT NAME, CREATED, SQL_TEXT FROM dba_sql_profiles where created > sysdate - 1 ORDER BY created;
+
+
+SQL> alter system set optimizer_adaptive_features=FALSE scope=both;
+
+System altered.

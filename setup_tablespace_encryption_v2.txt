@@ -1,0 +1,69 @@
+Here is the instruction…it is very simple..
+1.	Do not make any entry in sqlnet.ora…It is needed only if we have only one database per ORACLE_HOME.
+2.	Create directory as $ORACLE_BASE/admin/$SID/wallet
+2b.     orapki wallet create -wallet '/u01/app/oracle/admin/DB09/wallet' -auto_login_local
+2c.     shutdown
+2d.     startup
+3.	Login to database as SYSDBA
+4.	ALTER SYSTEM SET ENCRYPTION KEY IDENTIFIED BY "myWa11et";
+	                                             
+                                                     
+Please note….when "ALTER SYSTEM SET ENCRYPTION..." is executed, the server creates the wallet in the default location : $ORACLE_BASE/ADMIN/<SID>/WALLET.
+
+5.	Validate the location and key..
+6.	Create tablespace as needed 
+
+SQL> create tablespace OMDATA datafile '+DATA' size 1500M ENCRYPTION USING 'AES256'  DEFAULT STORAGE(ENCRYPT);
+
+Tablespace created.
+
+SQL> select name,open_mode from v$database;
+
+NAME      OPEN_MODE
+--------- --------------------
+OP15      READ WRITE
+
+SQL>  SELECT * FROM v$encryption_wallet;
+
+WRL_TYPE           WRL_PARAMETER                                           STATUS
+------------------------------------------------------------------------------------------
+File         /u01/app/oracle/admin/DB15/wallet                     OPEN
+
+
+SQL> select tablespace_name,encrypted from dba_tablespaces where tablespace_name like 'OMDATA';
+
+TABLESPACE_NAME                ENC
+------------------------------ ---
+OMDATA                         YES
+
+FROM OP07..
+
+SQL>  select name,open_mode from v$database;
+
+NAME      OPEN_MODE
+--------- --------------------
+OP07      READ WRITE
+
+SQL> SELECT * FROM v$encryption_wallet;
+
+WRL_TYPE                           WRL_PARAMETER                           STATUS
+-------------------------------------------------------------------------------------------
+File         /u01/app/oracle/admin/DB07/wallet                     OPEN
+
+
+SQL> select tablespace_name,encrypted from dba_tablespaces;
+
+TABLESPACE_NAME                ENC
+------------------------------ ---
+SYSTEM                         NO
+SYSAUX                         NO
+UNDOTBS1                       NO
+TEMP                           NO
+USERS                          NO
+UNDOTBS01                      NO
+
+Check the masterkey and make sure it is the same when you clone a database
+
+mkstore -wrl /u01/app/oracle/admin/DB36/wallet -viewEntry ORACLE.SECURITY.DB.ENCRYPTION.MASTERKEY
+
+
